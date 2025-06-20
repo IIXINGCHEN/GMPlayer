@@ -1,14 +1,14 @@
 <template>
   <div class="cover">
     <Transition name="fade" mode="out-in">
-      <div :key="`cover_pic--${music.getPlaySongData.album.pic}`"
+      <div :key="`cover_pic--${music.getPlaySongData?.album?.pic ?? defaultCover}`"
         :class="['pic', !music.getPlayState ? 'pause' : '', music.getLoadingState ? 'loading' : '']">
-        <img class="album" :src="music.getPlaySongData
+        <img class="album" :src="music.getPlaySongData && music.getPlaySongData.album
           ? music.getPlaySongData.album.picUrl.replace(/^http:/, 'https:') +
           '?param=1024y1024'
           : '/images/pic/default.png'
           " alt="cover" />
-        <img class="shadow" :src="music.getPlaySongData
+        <img class="shadow" :src="music.getPlaySongData && music.getPlaySongData.album
           ? music.getPlaySongData.album.picUrl.replace(/^http:/, 'https:') +
           '?param=1024y1024'
           : '/images/pic/default.png'
@@ -32,11 +32,9 @@
                 ? music.getPlaySongData.artist[1]
                 : null,
             ]" />
-            <span class="ablum text-hidden" @click="
+            <span v-if="music.getPlaySongData.album" class="ablum text-hidden" @click="
               routerJump('/album', {
-                id: music.getPlaySongData
-                  ? music.getPlaySongData.album.id
-                  : null,
+                id: music.getPlaySongData.album.id,
               })
               ">
               {{ music.getPlaySongData.album.name }}
@@ -139,6 +137,7 @@ import { setSeek } from "@/utils/Player";
 import AllArtists from "@/components/DataList/AllArtists.vue";
 import VueSlider from "vue-slider-component";
 import "vue-slider-component/theme/default.css";
+import defaultCover from "/images/pic/default.png?url";
 
 const router = useRouter();
 const music = musicStore();

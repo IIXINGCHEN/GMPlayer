@@ -2,13 +2,14 @@ import axios from "axios";
 
 switch (process.env.NODE_ENV) {
   case "production":
-    axios.defaults.baseURL = import.meta.env.VITE_MUSIC_API;
+    // 生产环境也使用 '/api'，需要在部署服务器 (Nginx、Apache、Netlify 等) 上做反向代理到真实后端，规避 CORS
+    axios.defaults.baseURL = "/api/ncm";
     break;
   case "development":
-    axios.defaults.baseURL = "/api";
+    axios.defaults.baseURL = "/api/ncm";
     break;
   default:
-    axios.defaults.baseURL = import.meta.env.VITE_MUSIC_API;
+    axios.defaults.baseURL = "/api/ncm";
     break;
 }
 
@@ -19,28 +20,32 @@ axios.defaults.withCredentials = true;
 // 请求拦截
 axios.interceptors.request.use(
   (request) => {
-    const lyricAtlasApiUrl = import.meta.env.VITE_LYRIC_ATLAS_API_URL;
-    const requestFullUrl = request.baseURL ? request.baseURL + request.url : request.url;
+    // 检查是否为 Lyric Atlas API 的请求
+    const isLyricAtlasRequest = request.url && request.url.startsWith('/api/la');
 
     // Ensure headers object exists
     request.headers = request.headers || {};
 
-    if (lyricAtlasApiUrl && requestFullUrl && requestFullUrl.startsWith(lyricAtlasApiUrl)) {
-      // For Lyric Atlas API:
-      // 1. Disable credentials
+    if (isLyricAtlasRequest) {
+      // 对 Lyric Atlas API：
+      // 1. 禁用凭据
       request.withCredentials = false;
-      // 2. Remove the X-Requested-With header if it exists
+      // 2. 移除 X-Requested-With 请求头
       delete request.headers['X-Requested-With'];
-      console.log('[Axios Interceptor] Lyric Atlas request - Removed X-Requested-With, set withCredentials=false');
+      // 3. 覆盖默认的 baseURL，确保请求根路径正确
+      request.baseURL = '/';
+      console.log('[Axios Interceptor] Lyric Atlas request - Overrode baseURL, removed X-Requested-With, set withCredentials=false');
     } else {
-      // For other requests:
-      // 1. Ensure default credentials setting (true)
+      // 对其他请求：
+      // 1. 确保使用默认的 baseURL
+      request.baseURL = "/api/ncm";
+      // 2. 确保凭据设置为 true
       request.withCredentials = true;
-      // 2. Ensure X-Requested-With header is present (Axios default might handle this, but explicit is safer)
+      // 3. 确保 X-Requested-With 请求头存在
       if (!request.headers['X-Requested-With']) {
           request.headers['X-Requested-With'] = 'XMLHttpRequest';
       }
-      console.log('[Axios Interceptor] Other request - Ensured X-Requested-With, set withCredentials=true');
+      console.log('[Axios Interceptor] Other request - Ensured baseURL, X-Requested-With, set withCredentials=true');
     }
 
     if (!request.hiddenBar && typeof $loadingBar !== "undefined")

@@ -9,11 +9,6 @@
       setting.appleStyle && !isMobile ? 'apple-style' : ''
     ]"
     :style="[
-      music.getPlaySongData && setting.backgroundImageShow === 'blur'
-        ? 'background-image: url(' +
-          music.getPlaySongData.album.picUrl.replace(/^http:/, 'https:') +
-          '?param=50y50)'
-        : '',
       `--cover-bg: ${songPicGradient}`,
       `--main-cover-color: rgb(${setting.immersivePlayer ? songPicColor : '255,255,255'})`,
     ]"
@@ -22,10 +17,16 @@
     <Transition name="fade" mode="out-in">
       <div :key="`bg--${songPicGradient}`" :class="['overlay', setting.backgroundImageShow]">
         <template v-if="setting.backgroundImageShow === 'blur'">
-          <img v-for="item in 4" :key="item" :src="music.getPlaySongData.album.picUrl.replace(/^http:/, 'https:') +
-            `?param=${item * 50}y${item * 50}`" :style="{
-              transform: `rotate(${item * 180}deg)`,
-            }" class="overlay-img" alt="overlay" />
+          <BlurBackgroundRender
+            v-if="music.getPlaySongData"
+            :fps="music.getPlayState ? setting.fps || 30 : 0"
+            :playing="actualPlayingProp"
+            :album="music.getPlaySongData.album.picUrl.replace(/^http:/, 'https:')"
+            :blurLevel="setting.blurAmount || 30"
+            :saturation="setting.contrastAmount || 1.2"
+            :renderScale="setting.renderScale || 0.5"
+            class="blur-webgl"
+          />
         </template>
       </div>
     </Transition>
@@ -250,6 +251,7 @@ import {
   computed,
   onBeforeUnmount,
 } from "vue";
+import BlurBackgroundRender from "./BlurBackgroundRender.vue";
 
 const router = useRouter();
 const music = musicStore();
@@ -996,80 +998,21 @@ watch(
           }
           
           .apple-controls {
-            opacity: 1;
-            margin-top: 20px;
-            background-color: rgba(255, 255, 255, 0.05);
-            padding: 20px;
-            border-radius: 12px;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            
-            .time {
-              span {
-                font-size: 0.85rem;
-                letter-spacing: -0.01em;
-              }
-              
-              .vue-slider {
-                :deep(.vue-slider-rail) {
-                  height: 5px;
-                  border-radius: 5px;
-                  background-color: rgba(255, 255, 255, 0.2);
-                  
-                  .vue-slider-process {
-                    background-color: white !important;
-                  }
-                  
-                  .vue-slider-dot {
-                    height: 16px !important;
-                    width: 16px !important;
-                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-                    
-                    &:hover, &:active {
-                      transform: scale(1.2);
-                    }
-                  }
-                }
-              }
-            }
-            
-            .control {
-              margin-top: 20px;
-              
-              .next, .prev, .dislike {
-                color: white;
-                opacity: 0.8;
-                transform: scale(1.1);
-                padding: 8px;
-                border-radius: 50%;
-                background-color: rgba(255, 255, 255, 0.1);
-                transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-                
-                &:hover {
-                  opacity: 1;
-                  background-color: rgba(255, 255, 255, 0.2);
-                  transform: scale(1.15);
-                }
-              }
-              
-              .play-state {
-                margin: 0 24px;
-                transform: scale(1.2);
-                
-                .n-button {
-                  background-color: rgba(255, 255, 255, 0.1);
-                  border: none;
-                  
-                  &:hover {
-                    background-color: rgba(255, 255, 255, 0.2);
-                  }
-                  
-                  .n-icon {
-                    color: white;
-                  }
-                }
-              }
-            }
+            position: absolute;
+            bottom: 6vh;
+            left: 17.5%;
+            transform: translateX(-50%);
+            max-width: 340px;
+            width: 90%;
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            box-shadow: none;
+          }
+
+          .apple-controls .time {
+            width: 100%;
+            margin: 0 0 12px 0;
           }
         }
       }
@@ -1296,7 +1239,7 @@ watch(
     width: 100%;
     height: 100%;
     overflow: hidden;
-    z-index: -1;
+    z-index: -2;
     transition: filter 0.5s ease;
     will-change: filter, opacity;
 
@@ -1326,7 +1269,16 @@ watch(
         filter: blur(80px) contrast(1.2);
         transition: filter 0.8s ease;
         will-change: filter, transform;
-        animation: slowRotate 120s infinite linear;
+        animation: none !important;
+      }
+      
+      .blur-webgl {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        overflow: hidden;
       }
     }
 
@@ -1354,7 +1306,8 @@ watch(
     }
   }
 
-  &.bplayer-eplor {
+  &.bplayer-eplor,
+  &.bplayer-blur {
     .gray {
       backdrop-filter: none;
       -webkit-backdrop-filter: none;

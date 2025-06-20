@@ -63,7 +63,7 @@ interface LyricProcessOptions {
 // TTML格式歌词的接口声明
 interface TTMLLyric {
   lines: LyricLine[];
-  // 其他TTML可能包含的属性
+  metadata: [string, string[]][];
 }
 
 // Define the Lyric Provider interface - now returns LyricData
@@ -127,12 +127,6 @@ class NeteaseLyricProvider implements LyricProvider {
 // Implementation for the Lyric-Atlas API - ADJUSTED FOR ACTUAL RESPONSE
 class LyricAtlasProvider implements LyricProvider {
   async getLyric(id: number): Promise<LyricData | null> {
-    // @ts-ignore
-    const apiUrl = import.meta.env.VITE_LYRIC_ATLAS_API_URL as string;
-    if (!apiUrl) {
-      console.error("VITE_LYRIC_ATLAS_API_URL is not defined in .env");
-      return null;
-    }
     try {
       // 首先尝试获取元数据，检查是否有歌词和可用的格式
       const meta = await this.checkLyricMeta(id);
@@ -147,8 +141,7 @@ class LyricAtlasProvider implements LyricProvider {
       const response: LyricAtlasDirectResponse = await axios({
         method: 'GET',
         hiddenBar: true,
-        baseURL: apiUrl,
-        url: `/api/search`,
+        url: `/api/la/api/search`,
         params: { id }, // Keep numeric ID for request
       });
 
@@ -630,20 +623,12 @@ class LyricAtlasProvider implements LyricProvider {
    * @returns 包含元数据信息的LyricMeta对象，如果请求失败则返回null
    */
   async checkLyricMeta(id: number): Promise<LyricMeta | null> {
-    // @ts-ignore
-    const apiUrl = import.meta.env.VITE_LYRIC_ATLAS_API_URL as string;
-    if (!apiUrl) {
-      console.error("VITE_LYRIC_ATLAS_API_URL is not defined in .env");
-      return null;
-    }
-    
     try {
       // 使用新的元数据API端点
       const response = await axios({
         method: 'GET',
         hiddenBar: true,
-        baseURL: apiUrl,
-        url: `/api/lyrics/meta`,
+        url: `/api/la/api/lyrics/meta`,
         params: { id }, // 使用歌曲ID作为参数
       });
 
@@ -689,15 +674,12 @@ export class LyricService {
     // 始终初始化网易云提供者，用于回退
     this.ncmProvider = new NeteaseLyricProvider();
     
-    // @ts-ignore
-    if (useLyricAtlas && import.meta.env.VITE_LYRIC_ATLAS_API_URL) {
+    // The presence of the provider is now controlled by the setting alone.
+    if (useLyricAtlas) {
       console.log("Using Lyric Atlas provider.");
       this.laProvider = new LyricAtlasProvider();
       this.provider = this.laProvider;
     } else {
-      if (useLyricAtlas) {
-          console.warn("Lyric Atlas provider selected, but VITE_LYRIC_ATLAS_API_URL is not defined. Falling back to Netease.");
-      }
       console.log("Using Netease lyric provider.");
       this.provider = this.ncmProvider;
     }

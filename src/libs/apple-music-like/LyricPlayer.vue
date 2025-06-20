@@ -20,7 +20,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted,watchEffect } from 'vue';
 import { musicStore, settingStore, siteStore } from "../../store";
 import { LyricPlayer, type LyricPlayerRef } from "@applemusic-like-lyrics/vue";
 import { preprocessLyrics, getProcessedLyrics, type LyricLine } from "./processLyrics";
@@ -34,9 +34,9 @@ const fontSize = ref(setting.lyricsFontSize * 3);
 const playState = ref(false);
 const currentTime = ref(0);
 
-watch(() => music.playState, (newState) => {
-  playState.value = newState;
-}, {immediate: true});
+watchEffect(() => {
+  playState.value = music.playState;
+});
 
 const emit = defineEmits<{
   'line-click': [e: { line: { getLine: () => { startTime: number } } }],
@@ -44,8 +44,9 @@ const emit = defineEmits<{
 }>();
 
 // 计算当前播放时间
-watch(() => music.persistData.playSongTime.currentTime, (newTime) => {
-  currentTime.value = newTime * 1000;
+watchEffect(() => {
+  // 提前 150ms 来解决异步更新延迟问题
+  currentTime.value = (music.persistData.playSongTime.currentTime * 1000) + 150;
 });
 
 // 计算对齐方式

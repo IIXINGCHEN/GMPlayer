@@ -90,7 +90,7 @@ export const createSound = (src, autoPlay = true) => {
     // 播放事件
     sound?.on("play", () => {
       if (timeupdateInterval) {
-        clearInterval(timeupdateInterval); // 清除之前的定时器
+        cancelAnimationFrame(timeupdateInterval); // 清除之前的定时器
       }
       const playSongData = music.getPlaySongData;
       if (!Object.keys(playSongData).length) {
@@ -119,7 +119,11 @@ export const createSound = (src, autoPlay = true) => {
       setMediaSession(music);
 
       // 获取播放器信息
-      timeupdateInterval = setInterval(() => checkAudioTime(sound, music), 250);
+      const timeLoop = () => {
+        checkAudioTime(sound, music);
+        timeupdateInterval = requestAnimationFrame(timeLoop);
+      };
+      timeLoop();
 
       // 写入播放历史
       music.setPlayHistory(playSongData);
@@ -130,7 +134,7 @@ export const createSound = (src, autoPlay = true) => {
 
     // 暂停事件
     sound?.on("pause", () => {
-      clearInterval(timeupdateInterval);
+      if (timeupdateInterval) cancelAnimationFrame(timeupdateInterval);
       console.log("音乐暂停");
       music.setPlayState(false);
       // 更改页面标题
@@ -138,6 +142,7 @@ export const createSound = (src, autoPlay = true) => {
     });
     // 结束事件
     sound?.on("end", () => {
+      if (timeupdateInterval) cancelAnimationFrame(timeupdateInterval);
       console.log("歌曲播放结束");
       music.setPlaySongIndex("next");
     });
@@ -236,7 +241,7 @@ export const soundStop = (sound) => {
 const checkAudioTime = (sound, music) => {
   if (sound.playing()) {
     const currentTime = sound.seek();
-    const duration = sound._duration;
+    const duration = sound.duration();
     music.setPlaySongTime({ currentTime, duration });
   }
 };

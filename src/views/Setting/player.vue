@@ -85,6 +85,44 @@
         </n-form>
       </n-modal>
     </n-card>
+    <n-card v-if="backgroundImageShow === 'blur'" class="set-item">
+      <div class="name">
+        WebGL 模糊效果设置
+        <span class="tip">使用 WebGL 渲染的高性能模糊效果，降低设备性能消耗</span>
+      </div>
+      <n-button class="set" @click="isBlurModalOn = true">配置</n-button>
+      <n-modal class="s-modal" preset="dialog" title="WebGL 模糊效果设置" v-model:show="isBlurModalOn">
+        <n-form style="margin-top: 1rem;">
+          <n-form-item label="FPS">
+            <n-input-number :min="1" :max="60" v-model:value="fps" />
+            <template #feedback>
+              设置渲染帧率，值越低性能消耗越小，但动画可能不够流畅
+            </template>
+          </n-form-item>
+          <br />
+          <n-form-item label="模糊程度">
+            <n-input-number :min="1" :max="100" v-model:value="blurAmount" />
+            <template #feedback>
+              设置背景模糊的强度，值越大模糊效果越强
+            </template>
+          </n-form-item>
+          <br />
+          <n-form-item label="对比度">
+            <n-input-number :min="0.1" :max="3" :step="0.1" v-model:value="contrastAmount" />
+            <template #feedback>
+              设置背景的对比度，提高对比度可以使色彩更加鲜明
+            </template>
+          </n-form-item>
+          <br />
+          <n-form-item label="渲染比例">
+            <n-input-number :min="0.1" :max="1" :step="0.1" v-model:value="renderScale" />
+            <template #feedback>
+              设置渲染的画布比例，值越低性能消耗越小，但画质可能降低
+            </template>
+          </n-form-item>
+        </n-form>
+      </n-modal>
+    </n-card>
     <n-card class="set-item">
       <div class="name">
         {{ $t("setting.showTransl") }}
@@ -329,9 +367,12 @@ const {
   lyricLetterSpacing,
   lyricLineHeight,
   useLyricAtlasAPI,
+  blurAmount,
+  contrastAmount,
 } = storeToRefs(setting);
 console.log('SETTING', fps)
 const isModalOn = ref(false)
+const isBlurModalOn = ref(false)
 
 // 监听 Lyric Atlas API 设置变化
 watch(useLyricAtlasAPI, (newValue, oldValue) => {

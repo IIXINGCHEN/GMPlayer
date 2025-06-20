@@ -21,6 +21,7 @@
     "colorthief": "^2.6.0",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.13",
+    "gl-matrix": "^3.4.3",
     "gsap": "^3.13.0",
     "howler": "^2.2.4",
     "motion-v": "^1.0.2",
