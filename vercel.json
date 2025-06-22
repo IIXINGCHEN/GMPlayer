@@ -1,31 +1,8 @@
 {
   "rewrites": [
     { "source": "/:path", "destination": "/index.html" },
-    { "source": "/api/ncm/:path*", "destination": "https://ncm-api-fork.vercel.app/:path*" },
+    { "source": "/api/ncm/:path*", "destination": "https://ncm-api.prod.gbclstudio.cn/:path*" },
     { "source": "/api/la/:path*", "destination": "https://lyric-atlas-api.vercel.app/:path*" },
     { "source": "/api/unm/:path*", "destination": "https://unm-server-8s5wg0k47-burial0268s-projects.vercel.app/:path*" }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",  
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"  
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, POST, OPTIONS" 
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "*"  
-        },
-        {
-          "key": "Access-Control-Allow-Credentials",
-          "value": "true"
-        }
-      ]
-    }
   ]
 }
