@@ -239,15 +239,17 @@ export function createLyricsProcessor(songLyric: SongLyric, settings: SettingSta
         lineEndTime = lineStartTime;
     }
 
-    let translatedLyric = rawLine.translatedLyric || "";
-    let romanLyric = rawLine.romanLyric || "";
-
-    // 如果行本身没有预填充翻译/音译 (例如来自TTML的特定翻译轨道)，则尝试从LRC格式的翻译/音译数据中查找
-    if (settings.showTransl && !translatedLyric && translationMap.size > 0) {
-      translatedLyric = findBestTimeMatch(lineStartTime, translationMap);
+    // 根据设置动态决定是否包含翻译和音译
+    let translatedLyric = "";
+    if (settings.showTransl) {
+      // 优先使用行内预填充的翻译，否则从LRC时间映射中查找
+      translatedLyric = rawLine.translatedLyric || findBestTimeMatch(lineStartTime, translationMap);
     }
-    if (settings.showRoma && !romanLyric && romajiMap.size > 0) {
-      romanLyric = findBestTimeMatch(lineStartTime, romajiMap);
+
+    let romanLyric = "";
+    if (settings.showRoma) {
+      // 优先使用行内预填充的音译，否则从LRC时间映射中查找
+      romanLyric = rawLine.romanLyric || findBestTimeMatch(lineStartTime, romajiMap);
     }
 
     return {

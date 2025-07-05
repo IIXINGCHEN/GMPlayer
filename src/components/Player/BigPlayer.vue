@@ -105,7 +105,7 @@
           </div>
 
           <div class="control">
-            <n-icon v-if="!music.getPersonalFmMode" class="prev" size="30" :component="SkipPreviousRound"
+            <n-icon v-if="!music.getPersonalFmMode" class="prev" size="30" :component="IconRewind"
               @click.stop="music.setPlaySongIndex('prev')" />
             <n-icon v-else class="dislike" :component="ThumbDownRound"
               @click="music.setFmDislike(music.getPersonalFmData.id)" />
@@ -113,13 +113,13 @@
               <n-button :loading="music.getLoadingState" secondary circle :keyboard="false" :focusable="false">
                 <template #icon>
                   <Transition name="fade" mode="out-in">
-                    <n-icon size="42" :component="music.getPlayState ? PauseRound : PlayArrowRound"
+                    <n-icon size="42" :component="music.getPlayState ? IconPause : IconPlay"
                       @click.stop="music.setPlayState(!music.getPlayState)" />
                   </Transition>
                 </template>
               </n-button>
             </div>
-            <n-icon class="next" size="30" :component="SkipNextRound"
+            <n-icon class="next" size="30" :component="IconForward"
               @click.stop="music.setPlaySongIndex('next')" />
           </div>
         </div>
@@ -185,7 +185,7 @@
                 <span>{{ music.getPlaySongTime.songTimeDuration }}</span>
               </div>
               <div class="control">
-                <n-icon v-if="!music.getPersonalFmMode" class="prev" size="30" :component="SkipPreviousRound"
+                <n-icon v-if="!music.getPersonalFmMode" class="prev" size="30" :component="IconRewind"
                   @click.stop="music.setPlaySongIndex('prev')" />
                 <n-icon v-else class="dislike" :component="ThumbDownRound"
                   @click="music.setFmDislike(music.getPersonalFmData.id)" />
@@ -193,13 +193,13 @@
                   <n-button :loading="music.getLoadingState" secondary circle :keyboard="false" :focusable="false">
                     <template #icon>
                       <Transition name="fade" mode="out-in">
-                        <n-icon size="42" :component="music.getPlayState ? PauseRound : PlayArrowRound"
+                        <n-icon size="42" :component="music.getPlayState ? IconPause : IconPlay"
                           @click.stop="music.setPlayState(!music.getPlayState)" />
                       </Transition>
                     </template>
                   </n-button>
                 </div>
-                <n-icon class="next" size="30" :component="SkipNextRound"
+                <n-icon class="next" size="30" :component="IconForward"
                   @click.stop="music.setPlaySongIndex('next')" />
               </div>
             </div>
@@ -216,14 +216,10 @@
 
 <script setup>
 import {
-  PlayArrowRound,
   KeyboardArrowDownFilled,
   FullscreenRound,
   FullscreenExitRound,
   SettingsRound,
-  PauseRound,
-  SkipNextRound,
-  SkipPreviousRound,
   ThumbDownRound,
 } from "@vicons/material";
 import { musicStore, settingStore, siteStore } from "@/store";
@@ -238,7 +234,7 @@ import screenfull from "screenfull";
 import VueSlider from "vue-slider-component";
 import "vue-slider-component/theme/default.css";
 import BackgroundRender from "@/libs/apple-music-like/BackgroundRender.vue";
-import { throttle } from "throttle-debounce"
+import { throttle } from "throttle-debounce";
 import { analyzeAudioIntensity } from "../../utils/fftIntensityAnalyze";
 import { storeToRefs } from "pinia";
 import gsap from "gsap";
@@ -252,6 +248,13 @@ import {
   onBeforeUnmount,
 } from "vue";
 import BlurBackgroundRender from "./BlurBackgroundRender.vue";
+
+// 导入 svg 图标
+import IconPlay from "./icons/IconPlay.vue";
+import IconPause from "./icons/IconPause.vue";
+import IconForward from "./icons/IconForward.vue";
+import IconRewind from "./icons/IconRewind.vue";
+import "./icons/icon-animations.css";
 
 const router = useRouter();
 const music = musicStore();
@@ -461,9 +464,8 @@ const lyricsScroll = (index) => {
     // Apple Music风格的歌词居中显示
     scrollDistance = el.offsetTop - container.offsetTop - containerHeight / 2 + el.offsetHeight / 2;
   } else {
-    // 桌面端根据设置使用居中或偏上显示
-    scrollDistance = el.offsetTop - container.offsetTop - 
-      (type === "center" ? containerHeight / 2 - el.offsetHeight / 2 : 80);
+    // 统一桌面端与移动端的滚动逻辑，使其滚动到视口约 35% 的位置
+    scrollDistance = el.offsetTop - container.offsetTop - containerHeight * 0.35;
   }
   
   // 使用GSAP动画滚动
@@ -1705,5 +1707,17 @@ watch(
   0% { text-shadow: 0 0 10px rgba(255, 255, 255, 0.2); }
   50% { text-shadow: 0 0 15px rgba(255, 255, 255, 0.4); }
   100% { text-shadow: 0 0 10px rgba(255, 255, 255, 0.2); }
+}
+
+.control {
+  .prev,
+  .next {
+    width: 30px;
+    height: 30px;
+  }
+  .control-icon {
+    width: 42px;
+    height: 42px;
+  }
 }
 </style>

@@ -1,26 +1,26 @@
 <template>
   <LyricPlayer 
     ref="lyricPlayerRef" 
-    :lyricLines="currentLyrics" 
+    :lyricLines="toRaw(currentLyrics)" 
     :currentTime="currentTime"
     :playing="playState"
     :alignAnchor="alignAnchor"
     :alignPosition="alignPosition" 
-    :enableSpring="setting.showYrcAnimation"
-    :enableScale="setting.showYrcAnimation" 
-    :enableBlur="setting.lyricsBlur"
+    :enableSpring="copyValue('showYrcAnimation')"
+    :enableScale="copyValue('showYrcAnimation')" 
+    :enableBlur="copyValue('lyricsBlur')"
     :enableInterludeDots="true"
     :wordFadeWidth="0.5" 
-    :linePosXSpringParams="setting.springParams.posX"
-    :linePosYSpringParams="setting.springParams.posY" 
-    :lineScaleSpringParams="setting.springParams.scale" 
+    :linePosXSpringParams="copyValue('springParams.posX')"
+    :linePosYSpringParams="copyValue('springParams.posY')" 
+    :lineScaleSpringParams="copyValue('springParams.scale')" 
     :style="lyricStyles"
     @line-click="handleLineClick" 
   />
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted,watchEffect } from 'vue';
+import { ref, computed, watch, onMounted,watchEffect, toRaw } from 'vue';
 import { musicStore, settingStore, siteStore } from "../../store";
 import { LyricPlayer, type LyricPlayerRef } from "@applemusic-like-lyrics/vue";
 import { preprocessLyrics, getProcessedLyrics, type LyricLine } from "./processLyrics";
@@ -37,6 +37,10 @@ const currentTime = ref(0);
 watchEffect(() => {
   playState.value = music.playState;
 });
+
+const copyValue = (value: any) => {
+  return setting[value];
+};
 
 const emit = defineEmits<{
   'line-click': [e: { line: { getLine: () => { startTime: number } } }],
@@ -115,16 +119,16 @@ onMounted(() => {
 
 // 获取当前歌词 - 优先使用预处理缓存
 const currentLyrics = computed<LyricLine[]>(() => {
-  const songLyric = music.songLyric || { lrcAMData: [], yrcAMData: [], hasTTML: false, ttml: [] };
+  const rawSongLyric = toRaw(music.songLyric) || { lrcAMData: [], yrcAMData: [], hasTTML: false, ttml: [] };
   
   // 记录歌词数据来源信息
-  if (!songLyric.lrcAMData?.length && !songLyric.yrcAMData?.length && !songLyric.ttml?.length) {
+  if (!rawSongLyric.lrcAMData?.length && !rawSongLyric.yrcAMData?.length && !rawSongLyric.ttml?.length) {
     console.log("[LyricPlayer] 未检测到有效歌词数据");
     return [];
   }
   
   // 使用优化后的函数获取歌词，优先使用缓存数据
-  return getProcessedLyrics(songLyric, { 
+  return getProcessedLyrics(rawSongLyric, { 
     showYrc: setting.showYrc,
     showRoma: setting.showRoma,
     showTransl: setting.showTransl

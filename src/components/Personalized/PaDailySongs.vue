@@ -1,9 +1,12 @@
 <template>
   <div
     class="padailysongs"
-    :style="`background-image: url(${cardImage})`"
     @click="router.push('/dailySongs')"
   >
+    <div
+      class="padailysongs-bg"
+      :style="`background-image: url(${cardImage})`"
+    />
     <div class="gray" />
     <div class="text">
       <div class="date">
@@ -118,10 +121,9 @@ onMounted(() => {
   z-index: 0;
   margin-bottom: 20px;
   transition: all 0.3s;
-  background-repeat: no-repeat;
-  background-size: 120% 120%;
-  background-position: center;
   cursor: pointer;
+  transform: translateZ(0);
+  perspective: 1px;
   &:hover {
     .control {
       .cover {
@@ -134,13 +136,24 @@ onMounted(() => {
       }
     }
   }
+  .padailysongs-bg {
+    position: absolute;
+    top: -11%;
+    left: -11%;
+    width: 122%;
+    height: 122%;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    z-index: -2;
+  }
   .gray {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: #00000040;
+    top: -11%;
+    left: -11%;
+    width: 122%;
+    height: 122%;
+    background-color: rgba(0, 0, 0, 0.4);
     -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     z-index: -1;

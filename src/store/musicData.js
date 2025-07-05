@@ -4,6 +4,7 @@ import { getSongTime, getSongPlayingTime } from "@/utils/timeTools";
 import { getPersonalFm, setFmTrash } from "@/api/home";
 import { getLikelist, setLikeSong } from "@/api/user";
 import { getPlayListCatlist } from "@/api/playlist";
+import { getMusicUrl } from "@/api/song";
 import { userStore, settingStore } from "@/store";
 import { NIcon } from "naive-ui";
 import { PlayCycle, PlayOnce, ShuffleOne } from "@icon-park/vue-next";
@@ -52,6 +53,8 @@ const useMusicDataStore = defineStore("musicData", {
       spectrumsScaleData: 1,
       // 是否正在加载数据
       isLoadingSong: false,
+      // 预加载过的歌曲ID
+      preloadedSongIds: new Set(),
       // 持久化数据
       persistData: {
         // 搜索历史
@@ -157,6 +160,95 @@ const useMusicDataStore = defineStore("musicData", {
     },
   },
   actions: {
+    // 预加载接下来 5 首歌曲
+    preloadUpcomingSongs() {
+      // 防御式检查：确保 preloadedSongIds 是一个 Set
+      if (!(this.preloadedSongIds instanceof Set)) {
+        console.warn(
+          "preloadedSongIds 类型不正确，已重置。这可能在页面刷新后发生。"
+        );
+        this.preloadedSongIds = new Set();
+      }
+      // 必须是非私人 FM 模式
+      if (this.persistData.personalFmMode) {
+        console.log("预加载已跳过：私人 FM 模式");
+        return;
+      }
+      const playlist = this.persistData.playlists;
+      const listLength = playlist.length;
+      // 列表歌曲数小于2，或不是顺序播放模式，则不预加载
+      if (listLength < 2 || this.persistData.playSongMode !== "normal") {
+        console.log(
+          `预加载已跳过：歌曲数 ${listLength} / 播放模式 ${this.persistData.playSongMode}`
+        );
+        return;
+      }
+
+      const currentIndex = this.persistData.playSongIndex;
+      const preloadCount = 5;
+      const songsToPreload = [];
+
+      for (let i = 0; i <= preloadCount; i++) {
+        const nextIndex = (currentIndex + i) % listLength;
+        const songData = playlist[nextIndex];
+        // 避免重复预加载
+        if (songData && !this.preloadedSongIds.has(songData.id)) {
+          songsToPreload.push(songData);
+        }
+      }
+
+      if (!songsToPreload.length) {
+        console.log("没有需要预加载的新歌曲");
+        return;
+      }
+
+      console.log(
+        "即将并行预加载歌曲:",
+        songsToPreload.map((s) => s.name).join(", ")
+      );
+
+      const urlPromises = songsToPreload.map((songData) =>
+        getMusicUrl(songData.id)
+          .then((res) => {
+            if (res.data[0]?.url) {
+              return {
+                id: songData.id,
+                name: songData.name,
+                url: res.data[0].url.replace(/^http:/, "https:"),
+              };
+            }
+            return null;
+          })
+          .catch((err) => {
+            console.error(`获取 ${songData.name} URL 失败`, err);
+            return null;
+          })
+      );
+
+      Promise.all(urlPromises).then((results) => {
+        const validSongs = results.filter(Boolean);
+        if (!validSongs.length) return;
+
+        const fetchPromises = validSongs.map((song) =>
+          fetch(song.url)
+            .then((response) => {
+              if (response.ok) {
+                console.log(`歌曲 ${song.name} 预加载完成`);
+                this.preloadedSongIds.add(song.id);
+              } else {
+                throw new Error(`Response status: ${response.status}`);
+              }
+            })
+            .catch((err) => {
+              console.warn(`歌曲 ${song.name} 预加载请求失败`, err);
+            })
+        );
+
+        Promise.all(fetchPromises).then(() => {
+          console.log("本批次预加载任务全部结束");
+        });
+      });
+    },
     // 更改是否处于私人FM模式
     setPersonalFmMode(value) {
       this.persistData.personalFmMode = value;
@@ -291,6 +383,7 @@ const useMusicDataStore = defineStore("musicData", {
     // 添加歌单至播放列表
     setPlaylists(value) {
       this.persistData.playlists = value.slice();
+      this.preloadedSongIds.clear();
     },
     // 更改每日推荐数据
     setDailySongs(value) {
@@ -448,9 +541,8 @@ const useMusicDataStore = defineStore("musicData", {
       if (value.duration === 0) {
         this.persistData.playSongTime.barMoveDistance = 0;
       } else {
-        this.persistData.playSongTime.barMoveDistance = Number(
-          (value.currentTime / (value.duration / 100)).toFixed(2)
-        );
+        this.persistData.playSongTime.barMoveDistance =
+          (value.currentTime / value.duration) * 100;
       }
 
       if (!Number.isNaN(this.persistData.playSongTime.barMoveDistance)) {
@@ -466,8 +558,29 @@ const useMusicDataStore = defineStore("musicData", {
       const setting = settingStore();
       const lrcType = !this.songLyric.hasYrc || !setting.showYrc;
       const lyrics = lrcType ? this.songLyric.lrc : this.songLyric.yrc;
-      const index = lyrics?.findIndex((v) => v?.time >= value?.currentTime);
-      this.playSongLyricIndex = index === -1 ? lyrics.length - 1 : index - 1;
+
+      // 优化歌词索引查找
+      if (!lyrics || !lyrics.length) {
+        this.playSongLyricIndex = -1;
+        return;
+      }
+
+      let currentIndex = this.playSongLyricIndex;
+
+      // 当进度条回溯时，重置索引从头开始查找
+      if (currentIndex > 0 && lyrics[currentIndex]?.time > value.currentTime) {
+        currentIndex = -1;
+      }
+
+      // 从当前索引向后查找，直到找到第一个时间大于当前播放时间的歌词
+      while (
+        currentIndex < lyrics.length - 1 &&
+        lyrics[currentIndex + 1].time <= value.currentTime
+      ) {
+        currentIndex++;
+      }
+
+      this.playSongLyricIndex = currentIndex;
     },
     // 设置当前播放模式
     setPlaySongMode(value = null) {
@@ -611,6 +724,7 @@ const useMusicDataStore = defineStore("musicData", {
     // 播放列表移除歌曲
     removeSong(index) {
       if (typeof $player === "undefined") return false;
+      const songId = this.persistData.playlists[index].id;
       const name = this.persistData.playlists[index].name;
       if (index < this.persistData.playSongIndex) {
         this.persistData.playSongIndex--;
@@ -620,6 +734,7 @@ const useMusicDataStore = defineStore("musicData", {
       }
       $message.success(name + " " + getLanguageData("removeSong"));
       this.persistData.playlists.splice(index, 1);
+      this.preloadedSongIds.delete(songId);
       // 检查当前播放歌曲的索引是否超出了列表范围
       if (this.persistData.playSongIndex >= this.persistData.playlists.length) {
         this.persistData.playSongIndex = 0;
@@ -695,6 +810,10 @@ const useMusicDataStore = defineStore("musicData", {
     {
       storage: localStorage,
       paths: ["persistData"],
+      afterRestore: (ctx) => {
+        // 在状态恢复后，确保 preloadedSongIds 是一个 Set
+        ctx.store.preloadedSongIds = new Set();
+      },
     },
   ],
 });

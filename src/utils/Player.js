@@ -1,6 +1,6 @@
 import { Howl, Howler } from "howler";
 import { songScrobble } from "@/api/song";
-import { musicStore, settingStore, siteStore } from "@/store";
+import { musicStore, settingStore, siteStore, userStore } from "@/store";
 import { NIcon } from "naive-ui";
 import { MusicNoteFilled } from "@vicons/material";
 import getLanguageData from "./getLanguageData";
@@ -32,8 +32,9 @@ export const createSound = (src, autoPlay = true) => {
   try {
     Howler.unload();
     const music = musicStore();
-    const site = siteStore()
-    const settings = settingStore()
+    const site = siteStore();
+    const settings = settingStore();
+    const user = userStore();
     const sound = new Howl({
       src: [src],
       format: ["mp3", "flac"],
@@ -54,8 +55,6 @@ export const createSound = (src, autoPlay = true) => {
       const sourceId = music.getPlaySongData?.sourceId
         ? music.getPlaySongData.sourceId
         : 0;
-      const user = JSON.parse(localStorage.getItem("userData"));
-      const settings = JSON.parse(localStorage.getItem("settingData"));
       const isLogin = user.userLogin;
       const isMemory = settings.memoryLastPlaybackPosition;
       console.log("首次缓冲完成：" + songId + " / 来源：" + sourceId);
@@ -117,6 +116,9 @@ export const createSound = (src, autoPlay = true) => {
 
       console.log(`开始播放：${songName} - ${songArtist}`);
       setMediaSession(music);
+      
+      // 预加载下一首
+      music.preloadUpcomingSongs();
 
       // 获取播放器信息
       const timeLoop = () => {
@@ -192,8 +194,12 @@ export const setVolume = (sound, volume) => {
  */
 export const setSeek = (sound, seek) => {
   const music = musicStore();
-  music.persistData.playSongTime.currentTime = seek;
   sound?.seek(seek);
+  // 直接调用 setPlaySongTime 确保 UI 状态立即更新
+  music.setPlaySongTime({
+    currentTime: seek,
+    duration: sound.duration(),
+  });
 };
 
 /**
@@ -308,17 +314,22 @@ const setMediaSession = (music) => {
  * @returns {void}
  */
 export const processSpectrum = (sound) => {
-  console.log('processSpectrum')
+  console.log("processSpectrum");
   try {
+    const audioDom = sound?._sounds[0]?._node;
+    if (!audioDom) {
+      console.warn("无法获取到音频 DOM 元素，频谱功能无法启动。");
+      return;
+    }
     if (!spectrumsData.audioCtx) {
       // 断开之前的连接
       spectrumsData.audio?.disconnect();
       spectrumsData.analyser?.disconnect();
       spectrumsData.audioCtx?.close();
       // 创建新的连接
-      spectrumsData.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      spectrumsData.audioCtx = new (window.AudioContext ||
+        window.webkitAudioContext)();
       // 获取音频元素
-      const audioDom = sound._sounds[0]._node;
       // 允许跨域请求
       audioDom.crossOrigin = "anonymous";
       // 创建音频源和分析器
